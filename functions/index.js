@@ -84,6 +84,7 @@ app.intent('Reset game', (conv) => {
 	console.log('got intent to reset the game')
 	conv.data.previousGameState = conv.data.state
 	conv.data.state = null
+	conv = clearPersistedStorage(conv) // clear the game if it was saved to this user
 	conv.ask(`I've reset the scores. Do you want to play another game?`)
 })
 
@@ -179,6 +180,7 @@ function userHasExistingGame(conv) {
 function restoreGameState(conv) {
 	if (userHasExistingGame(conv)) {
 		conv.data.state = conv.user.storage.ongoingGame.state
+		conv.data.previousGameState = conv.user.storage.previousGameState
 		conv.data.names = conv.user.storage.ongoingGame.names
 		conv.data.startingPoints = conv.user.storage.ongoingGame.startingPoints
 	}
@@ -189,6 +191,7 @@ function restoreGameState(conv) {
 function persistGameState(conv) {
 	if (conv.data.state) {
 		conv.user.storage.ongoingGame = {}
+		conv.user.storage.previousGameState = conv.data.previousGameState
 		conv.user.storage.ongoingGame.names = conv.data.names
 		conv.user.storage.ongoingGame.startingPoints = conv.data.startingPoints
 		conv.user.storage.ongoingGame.state = conv.data.state
@@ -196,6 +199,12 @@ function persistGameState(conv) {
 	} else {
 		conv.user.storage.hasOngoingGame = false
 	}
+	return conv
+}
+
+function clearPersistedStorage(conv) {
+	conv.user.storage = {}
+	conv.user.storage.hasOngoingGame = false
 	return conv
 }
 
