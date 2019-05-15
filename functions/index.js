@@ -21,7 +21,6 @@ app.intent('Apply operation', (conv, { operation, points, player }) => {
 		console.log('no state stored')
 	} else {
 		console.log('there is state, so we can perform the operation')
-		//console.log(conv.data.state.serialize())
 		console.log(conv.data.state)
 		if (player in conv.data.state) {
 			// this player exists, so we can operate on it
@@ -41,9 +40,64 @@ app.intent('Apply operation', (conv, { operation, points, player }) => {
 					console.log('setting')
 					currentPoints = pointsNum
 					break;
+				case 'delete':
+					console.log('deleting')
+					currentPoints = 0
+					break;
 			}
 			conv.data.state[player] = currentPoints
 			conv.ask(`${player} now has ${currentPoints}`)
+		}
+	}
+})
+
+app.intent('List all points', (conv) => {
+	if (!conv.data.state) {
+		// there are no names, should implement some kind of error handling
+		console.log('no state stored')
+	} else {
+		// there is state
+		console.log(conv.data.state)
+
+		let responseString = `Here are the scores`
+		for (player in conv.data.state) {
+			let playerPoints = conv.data.state[player]
+			responseString += `${player} has ${playerPoints}, `
+		}
+
+		conv.ask(responseString)
+	}
+})
+
+app.intent('Reset game', (conv) => {
+	conv.data.previousGameState = conv.data.state
+	conv.data.state = null
+})
+
+app.intent('Edit player list', (conv, { operation, player }) => {
+	if (!conv.data.state) {
+		// there are no names, should implement some kind of error handling
+		console.log('no state stored')
+	} else {
+		console.log('there is state, so we can edit the player list')
+		console.log(conv.data.state)
+		if (player in conv.data.state) {
+			// this player exists, so we can operate on it
+			console.log(`found ${player} in the map`)
+			switch(operation) {
+				case 'add':
+				case 'set':
+					console.log('adding')
+					conv.data.state[player] = conv.data.startingPoints
+					conv.ask(`I added a new player named ${player} and gave them ${conv.data.startingPoints} to start.`)
+					break;
+				case 'subtract':
+				case 'delete':
+					console.log('deleting')
+					conv.data.state.remove(player)
+					conv.ask(`I've removed ${player}.`)
+					break;
+			}
 		}
 	}
 })
@@ -64,6 +118,7 @@ app.intent('Query current points', (conv, { player }) => {
 
 app.intent('Set starting points', (conv, { startingPoints }) => {
 	conv.data.state = new Map()
+	conv.data.startingPoints = startingPoints
 	for (const name of conv.data.names) {
 		console.log(`giving ${name} ${startingPoints}`)
 		conv.data.state[name] = startingPoints
