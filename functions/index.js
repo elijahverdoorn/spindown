@@ -89,25 +89,23 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 	} else {
 		console.log('there is state, so we can edit the player list')
 		console.log(conv.data.state)
-		if (player in conv.data.state) {
-			// this player exists, so we can operate on it
-			console.log(`found ${player} in the map`)
-			switch(operation) {
-				case 'add':
-				case 'set':
-					console.log('adding')
-					conv.data.state[player] = conv.data.startingPoints
-					conv.ask(`I added a new player named ${player} and gave them ${conv.data.startingPoints} to start.`)
-					break;
-				case 'subtract':
-				case 'delete':
+		switch(operation) {
+			case 'add':
+			case 'set':
+				console.log('adding')
+				conv.data.state[player] = conv.data.startingPoints
+				conv.ask(`I added a new player named ${player} and gave them ${conv.data.startingPoints} to start.`)
+				break;
+			case 'subtract':
+			case 'delete':
+				if (player in conv.data.state) {
 					console.log('deleting')
 					delete conv.data.state[player]
 					conv.ask(`I've removed ${player}.`)
-					break;
-			}
-		} else {
-			conv.ask(`I had trouble finding that player; try again please.`)
+				} else {
+					conv.ask(`I had trouble finding that player, please try again`)
+				}
+				break;
 		}
 	}
 })
@@ -122,6 +120,8 @@ app.intent('Query current points', (conv, { player }) => {
 		if (player in conv.data.state) {
 			let playerPoints = conv.data.state[player]
 			conv.ask(`${player} has ${playerPoints}`)
+		} else {
+			conv.ask(`I don't know about a player named ${player}. If you'd like to add a player to the game, just say "add a player"`)
 		}
 	}
 })
