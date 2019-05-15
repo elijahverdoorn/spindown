@@ -25,20 +25,21 @@ app.intent('Apply operation', (conv, { operation, points, player }) => {
 		console.log(conv.data.state)
 		if (player in conv.data.state) {
 			// this player exists, so we can operate on it
-			let currentPoints = conv.data.state[player]
+			let currentPoints = Number(conv.data.state[player]) // have to parse the strings to a number so that they do math instead of concat
+			let pointsNum = Number(points) // have to parse the strings to a number so that they do math instead of concat
 			console.log(`found ${player} in the map, they have ${currentPoints} before the operation`)
 			switch(operation) {
 				case 'add':
 					console.log('adding')
-					currentPoints += points;
+					currentPoints += pointsNum
 					break;
 				case 'subtract':
 					console.log('subtracting')
-					currentPoints -= points;
+					currentPoints -= pointsNum
 					break;
 				case 'set':
 					console.log('setting')
-					currentPoints = points;
+					currentPoints = pointsNum
 					break;
 			}
 			conv.data.state[player] = currentPoints
@@ -47,6 +48,19 @@ app.intent('Apply operation', (conv, { operation, points, player }) => {
 	}
 })
 
+app.intent('Query current points', (conv, { player }) => {
+	if (!conv.data.state) {
+		// there are no names, should implement some kind of error handling
+		console.log('no state stored')
+	} else {
+		// there is state
+		console.log(conv.data.state)
+		if (player in conv.data.state) {
+			let playerPoints = conv.data.state[player]
+			conv.ask(`${player} has ${playerPoints}`)
+		}
+	}
+})
 
 app.intent('Set starting points', (conv, { startingPoints }) => {
 	conv.data.state = new Map()
