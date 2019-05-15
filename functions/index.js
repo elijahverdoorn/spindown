@@ -70,8 +70,16 @@ app.intent('List all points', (conv) => {
 })
 
 app.intent('Reset game', (conv) => {
+	console.log('got intent to reset the game')
 	conv.data.previousGameState = conv.data.state
 	conv.data.state = null
+	conv.ask(`I've reset the scores. Do you want to play another game?`)
+})
+
+app.intent('New game with same players', (conv) => {
+	console.log('got intent for new game with same player list')
+	conv.data.state = buildNewGameStateMap(conv.data.startingPoints, conv.data.names)
+	conv.ask(`Great, another round! I've reset the scores, have fun!`)
 })
 
 app.intent('Edit player list', (conv, { operation, player }) => {
@@ -94,10 +102,12 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 				case 'subtract':
 				case 'delete':
 					console.log('deleting')
-					conv.data.state.remove(player)
+					delete conv.data.state[player]
 					conv.ask(`I've removed ${player}.`)
 					break;
 			}
+		} else {
+			conv.ask(`I had trouble finding that player; try again please.`)
 		}
 	}
 })
@@ -117,13 +127,20 @@ app.intent('Query current points', (conv, { player }) => {
 })
 
 app.intent('Set starting points', (conv, { startingPoints }) => {
-	conv.data.state = new Map()
+	conv.data.state = buildNewGameStateMap(startingPoints, conv.data.names)
 	conv.data.startingPoints = startingPoints
-	for (const name of conv.data.names) {
-		console.log(`giving ${name} ${startingPoints}`)
-		conv.data.state[name] = startingPoints
-	}
 	conv.ask(`Started a game, everyone has ${startingPoints} points. Good luck!`)
 })
 
 exports.dialogflowFirebaseFulfillment = functions.https.onRequest(app)
+
+function buildNewGameStateMap(points, names) {
+	let map = new Map()
+	for (const name of names) {
+		console.log(`giving ${name} ${points}`)
+		map[name] = points
+	}
+	return map
+}
+
+
