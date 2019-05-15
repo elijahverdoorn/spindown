@@ -6,6 +6,17 @@ process.env.DEBUG = 'dialogflow:*' // enable lib debugging statements
 
 const app = dialogflow({debug: true})
 
+app.intent('Welcome', (conv) => {
+	// check if there is an ongoing game for this user
+	if (userHasExistingGame(conv)) {
+		// found stored data in the user. Restore that state and inform the user
+		conv = restoreGameState(conv)
+		conv.ask(`Resumed your ongoing game. Go ahead and tell me what to do!`)
+	} else {
+		conv.ask(`Welcome to Spindown! I'll keep track of points for you while you play. To get started, who is playing?`)
+	}
+})
+
 app.intent('Set player names', (conv, { playerNames }) => {
 	console.log('got a game start intent')
 
@@ -132,8 +143,20 @@ app.intent('Set starting points', (conv, { startingPoints }) => {
 	conv.ask(`Started a game, everyone has ${startingPoints} points. Good luck!`)
 })
 
+app.intent('Exit callback', (conv) => {
+	conv = persistGameState(conv)
+	conv.close(`Saving the game and closing spindown.`)
+})
+
+// error handler, which is basically a fallback
+app.catch((conv, error) => {
+	console.log(error)
+	conv.ask(`I'm sorry, I had a problem. Can you try that again?`)
+})
+
 exports.dialogflowFirebaseFulfillment = functions.https.onRequest(app)
 
+// returns a map of names to points
 function buildNewGameStateMap(points, names) {
 	let map = new Map()
 	for (const name of names) {
@@ -143,4 +166,36 @@ function buildNewGameStateMap(points, names) {
 	return map
 }
 
+// checks if the userStorage (persisted between conversations) has a game
+function userHasExistingGame(conv) {
+	if (conv.user.storage.hasOngoingGame) {
+		return true
+	} else {
+		return false
+	}
+}
+
+// takes the state from the userStorage and sets it up in the current conversation
+function restoreGameState(conv) {
+	if (userHasExistingGame(conv)) {
+		conv.data.state = conv.user.storage.ongoingGame.state
+		conv.data.names = conv.user.storage.ongoingGame.names
+		conv.data.startingPoints = conv.user.storage.ongoingGame.startingPoints
+	}
+	return conv
+}
+
+// takes the conv object and returns an ongoingGame object to be stored to the userData
+function persistGameState(conv) {
+	if (conv.data.state) {
+		conv.user.storage.ongoingGame = {}
+		conv.user.storage.ongoingGame.names = conv.data.names
+		conv.user.storage.ongoingGame.startingPoints = conv.data.startingPoints
+		conv.user.storage.ongoingGame.state = conv.data.state
+		conv.user.storage.hasOngoingGame = true
+	} else {
+		conv.user.storage.hasOngoingGame = false
+	}
+	return conv
+}
 
