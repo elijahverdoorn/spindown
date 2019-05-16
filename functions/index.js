@@ -15,11 +15,17 @@ app.intent('Welcome', (conv) => {
 			conv = restoreGameState(conv)
 			conv.ask(`Resumed your ongoing game. Go ahead and tell me what to do!`)
 		} else {
-			conv.ask(`Welcome back to Spindown! I didn't find any saved games for you, so I've made a new one. Who is playing this time?`)
+			conv.ask(`Welcome back to Keep Score! I didn't find any saved games for you, so I've made a new one. Who is playing this time?`)
 		}
 	} else {
-		conv.ask(`Welcome to Spindown! I can keep track of points for you while you play games. To get started, I need to know who is playing?`)
+		conv.ask(`Welcome to Keep Score! I can keep track of points for you while you play games. To get started, I need to know who is playing?`)
 	}
+})
+
+// invoked when the user doesn't say anything
+app.intent('Reprompt', (conv) => {
+	conv = persistGameState(conv)
+	conv.close(`I'll let you play now - when you need to update the scores, just ask!`)
 })
 
 app.intent('Set player names', (conv, { playerNames }) => {
@@ -77,11 +83,13 @@ app.intent('List all points', (conv) => {
 		// there is state
 		console.log(conv.data.state)
 
-		let responseString = `Here are the scores`
+		let responseString = `Here are the scores: `
 		for (player in conv.data.state) {
 			let playerPoints = conv.data.state[player]
 			responseString += `${player} has ${playerPoints}, `
 		}
+		responseString = responseString.substring(0, responseString.length - 2) // remove trailing ','
+		responseString += `.` // add a '.'
 
 		conv.ask(responseString)
 	}
@@ -131,6 +139,25 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 	}
 })
 
+app.intent('Query current leader', (conv, { extreme }) => {
+	conv = restoreGameState(conv)
+	conv.ask(`I'm still working on learning how to do that! Ask me again soon and I'm sure I'll have it figured out; in the meantime you can ask for all the scores, or you can ask for an individual player's score.`)
+	//if (!conv.data.state) {
+		// there are no names, should implement some kind of error handling
+		//console.log('no state stored')
+	//} else {
+		//// there is state
+		//console.log(conv.data.state)
+		//switch (extreme) {
+			//case 'most':
+				//break;
+			//case 'least':
+				//break;
+		//}
+	//}
+})
+
+
 app.intent('Query current points', (conv, { player }) => {
 	conv = restoreGameState(conv)
 	if (!conv.data.state) {
@@ -172,7 +199,7 @@ function buildNewGameStateMap(points, names) {
 	let map = new Map()
 	for (const name of names) {
 		console.log(`giving ${name} ${points}`)
-		map[name] = points
+		map[name] = Number(points)
 	}
 	return map
 }
