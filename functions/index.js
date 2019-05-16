@@ -179,20 +179,19 @@ function buildNewGameStateMap(points, names) {
 
 // checks if the userStorage (persisted between conversations) has a game
 function userHasExistingGame(conv) {
-	if (conv.user.storage.hasOngoingGame) {
-		return true
-	} else {
-		return false
-	}
+	return conv.user.storage.hasOngoingGame
 }
 
 // takes the state from the userStorage and sets it up in the current conversation
 function restoreGameState(conv) {
 	if (userHasExistingGame(conv)) {
+		console.log('user has a game, restoring state')
 		conv.data.state = conv.user.storage.ongoingGame.state
 		conv.data.previousGameState = conv.user.storage.previousGameState
 		conv.data.names = conv.user.storage.ongoingGame.names
 		conv.data.startingPoints = conv.user.storage.ongoingGame.startingPoints
+	} else {
+		console.log(`user has no stored game, can't restore state`)
 	}
 	return conv
 }
@@ -200,13 +199,15 @@ function restoreGameState(conv) {
 // takes the conv object and returns an ongoingGame object to be stored to the userData
 function persistGameState(conv) {
 	if (conv.data.state) {
+		console.log(`persisting game state`)
 		conv.user.storage.ongoingGame = {}
-		conv.user.storage.previousGameState = conv.data.previousGameState
+		conv.user.storage.ongoingGame.previousGameState = conv.data.previousGameState
 		conv.user.storage.ongoingGame.names = conv.data.names
 		conv.user.storage.ongoingGame.startingPoints = conv.data.startingPoints
 		conv.user.storage.ongoingGame.state = conv.data.state
 		conv.user.storage.hasOngoingGame = true
 	} else {
+		console.log(`no state to persist, not persisting game state`)
 		conv.user.storage.hasOngoingGame = false
 	}
 	return conv
