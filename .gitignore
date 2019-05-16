@@ -70,3 +70,9 @@ typings/
 
 # next.js build output
 .next
+
+# vim swp files
+*.swp
+
+# mac .DS_Store
+*.DS_Store
