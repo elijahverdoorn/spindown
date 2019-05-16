@@ -7,13 +7,18 @@ process.env.DEBUG = 'dialogflow:*' // enable lib debugging statements
 const app = dialogflow({debug: true})
 
 app.intent('Welcome', (conv) => {
-	// check if there is an ongoing game for this user
-	if (userHasExistingGame(conv)) {
-		// found stored data in the user. Restore that state and inform the user
-		conv = restoreGameState(conv)
-		conv.ask(`Resumed your ongoing game. Go ahead and tell me what to do!`)
+	if (conv.user.last.seen) {
+		// we've seen this user before
+		// check if there is an ongoing game for this user
+		if (userHasExistingGame(conv)) {
+			// found stored data in the user. Restore that state and inform the user
+			conv = restoreGameState(conv)
+			conv.ask(`Resumed your ongoing game. Go ahead and tell me what to do!`)
+		} else {
+			conv.ask(`Welcome back to Spindown! I didn't find any saved games for you, so I've made a new one. Who is playing this time?`)
+		}
 	} else {
-		conv.ask(`Welcome to Spindown! I'll keep track of points for you while you play. To get started, who is playing?`)
+		conv.ask(`Welcome to Spindown! I can keep track of points for you while you play games. To get started, I need to know who is playing?`)
 	}
 })
 
@@ -26,6 +31,7 @@ app.intent('Set player names', (conv, { playerNames }) => {
 })
 
 app.intent('Apply operation', (conv, { operation, points, player }) => {
+	conv = restoreGameState(conv)
 	console.log('got a apply operation intent')
 	if (!conv.data.state) {
 		// there are no names, should implement some kind of error handling
@@ -63,6 +69,7 @@ app.intent('Apply operation', (conv, { operation, points, player }) => {
 })
 
 app.intent('List all points', (conv) => {
+	conv = restoreGameState(conv)
 	if (!conv.data.state) {
 		// there are no names, should implement some kind of error handling
 		console.log('no state stored')
@@ -81,6 +88,7 @@ app.intent('List all points', (conv) => {
 })
 
 app.intent('Reset game', (conv) => {
+	conv = restoreGameState(conv)
 	console.log('got intent to reset the game')
 	conv.data.previousGameState = conv.data.state
 	conv.data.state = null
@@ -95,6 +103,7 @@ app.intent('New game with same players', (conv) => {
 })
 
 app.intent('Edit player list', (conv, { operation, player }) => {
+	conv = restoreGameState(conv)
 	if (!conv.data.state) {
 		// there are no names, should implement some kind of error handling
 		console.log('no state stored')
@@ -123,6 +132,7 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 })
 
 app.intent('Query current points', (conv, { player }) => {
+	conv = restoreGameState(conv)
 	if (!conv.data.state) {
 		// there are no names, should implement some kind of error handling
 		console.log('no state stored')
@@ -146,7 +156,7 @@ app.intent('Set starting points', (conv, { startingPoints }) => {
 
 app.intent('Exit callback', (conv) => {
 	conv = persistGameState(conv)
-	conv.close(`Saving the game and closing spindown.`)
+	conv.close(`Saving the game and closing Keep Score.`)
 })
 
 // error handler, which is basically a fallback
