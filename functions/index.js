@@ -13,7 +13,7 @@ app.intent('Welcome', (conv) => {
 		if (userHasExistingGame(conv)) {
 			// found stored data in the user. Restore that state and inform the user
 			conv = restoreGameState(conv)
-			conv.ask(`Resumed your ongoing game. Go ahead and tell me what to do!`)
+			conv.ask(`Welcome back! I've resumed your ongoing game. Go ahead and tell me what to do!`)
 		} else {
 			conv.ask(`Welcome back to Keep Score! I didn't find any saved games for you, so I've made a new one. Who is playing this time?`)
 		}
@@ -38,66 +38,44 @@ app.intent('Set player names', (conv, { playerNames }) => {
 
 app.intent('Apply operation', (conv, { operation, points, player }) => {
 	conv = restoreGameState(conv)
-	console.log('got a apply operation intent')
-	if (!conv.data.state) {
-		// there are no names, should implement some kind of error handling
-		console.log('no state stored')
-	} else {
-		console.log('there is state, so we can perform the operation')
-		console.log(conv.data.state)
-		if (player in conv.data.state) {
-			// this player exists, so we can operate on it
-			let currentPoints = Number(conv.data.state[player]) // have to parse the strings to a number so that they do math instead of concat
-			let pointsNum = Number(points) // have to parse the strings to a number so that they do math instead of concat
-			console.log(`found ${player} in the map, they have ${currentPoints} before the operation`)
-			switch(operation) {
-				case 'add':
-					console.log('adding')
-					currentPoints += pointsNum
-					break;
-				case 'subtract':
-					console.log('subtracting')
-					currentPoints -= pointsNum
-					break;
-				case 'set':
-					console.log('setting')
-					currentPoints = pointsNum
-					break;
-				case 'delete':
-					console.log('deleting')
-					currentPoints = 0
-					break;
-			}
-			conv.data.state[player] = currentPoints
-			conv.ask(`${player} now has ${currentPoints}`)
+	if (player in conv.data.state) {
+		// this player exists, so we can operate on it
+		let currentPoints = Number(conv.data.state[player]) // have to parse the strings to a number so that they do math instead of concat
+		let pointsNum = Number(points) // have to parse the strings to a number so that they do math instead of concat
+		switch(operation) {
+			case 'add':
+				currentPoints += pointsNum
+				break;
+			case 'subtract':
+				currentPoints -= pointsNum
+				break;
+			case 'set':
+				currentPoints = pointsNum
+				break;
+			case 'delete':
+				currentPoints = 0
+				break;
 		}
+		conv.data.state[player] = currentPoints
+		conv.ask(`${player} now has ${currentPoints}`)
 	}
 })
 
 app.intent('List all points', (conv) => {
 	conv = restoreGameState(conv)
-	if (!conv.data.state) {
-		// there are no names, should implement some kind of error handling
-		console.log('no state stored')
-	} else {
-		// there is state
-		console.log(conv.data.state)
-
-		let responseString = `Here are the scores: `
-		for (player in conv.data.state) {
-			let playerPoints = conv.data.state[player]
-			responseString += `${player} has ${playerPoints}, `
-		}
-		responseString = responseString.substring(0, responseString.length - 2) // remove trailing ','
-		responseString += `.` // add a '.'
-
-		conv.ask(responseString)
+	let responseString = `Here are the scores: `
+	for (player in conv.data.state) {
+		let playerPoints = conv.data.state[player]
+		responseString += `${player} has ${playerPoints}, `
 	}
+	responseString = responseString.substring(0, responseString.length - 2) // remove trailing ','
+	responseString += `.` // add a '.'
+
+	conv.ask(responseString)
 })
 
 app.intent('Reset game', (conv) => {
 	conv = restoreGameState(conv)
-	console.log('got intent to reset the game')
 	conv.data.previousGameState = conv.data.state
 	conv.data.state = null
 	conv = clearPersistedStorage(conv) // clear the game if it was saved to this user
@@ -105,37 +83,33 @@ app.intent('Reset game', (conv) => {
 })
 
 app.intent('New game with same players', (conv) => {
-	console.log('got intent for new game with same player list')
+	conv.data.state = null
 	conv.data.state = buildNewGameStateMap(conv.data.startingPoints, conv.data.names)
 	conv.ask(`Great, another round! I've reset the scores, have fun!`)
 })
 
 app.intent('Edit player list', (conv, { operation, player }) => {
 	conv = restoreGameState(conv)
-	if (!conv.data.state) {
-		// there are no names, should implement some kind of error handling
-		console.log('no state stored')
-	} else {
-		console.log('there is state, so we can edit the player list')
-		console.log(conv.data.state)
-		switch(operation) {
-			case 'add':
-			case 'set':
-				console.log('adding')
-				conv.data.state[player] = conv.data.startingPoints
-				conv.ask(`I added a new player named ${player} and gave them ${conv.data.startingPoints} to start.`)
-				break;
-			case 'subtract':
-			case 'delete':
-				if (player in conv.data.state) {
-					console.log('deleting')
-					delete conv.data.state[player]
-					conv.ask(`I've removed ${player}.`)
+	switch(operation) {
+		case 'add':
+		case 'set':
+			conv.data.state[player] = startingPoints
+			conv.ask(`I added a new player named ${player} and gave them ${conv.data.startingPoints} to start.`)
+			break;
+		case 'subtract':
+		case 'delete':
+			if (player in conv.data.state) {
+				delete conv.data.state[player]
+				if (!stateMapHasPlayers(conv)) { // check if the user has removed all the players from the map
+					conv.contexts.set('Resetgame-followup', 2, null) // set a reset game context, since we're asking the user if that's what they want
+					conv.ask(`There are no players left in the game, would you like to reset the game?`)
 				} else {
-					conv.ask(`I had trouble finding that player, please try again`)
+					conv.ask(`I've removed ${player}.`)
 				}
-				break;
-		}
+			} else {
+				conv.ask(`I had trouble finding that player, please try again`)
+			}
+			break;
 	}
 })
 
@@ -160,18 +134,13 @@ app.intent('Query current leader', (conv, { extreme }) => {
 
 app.intent('Query current points', (conv, { player }) => {
 	conv = restoreGameState(conv)
-	if (!conv.data.state) {
-		// there are no names, should implement some kind of error handling
-		console.log('no state stored')
+	// there is state
+	console.log(conv.data.state)
+	if (player in conv.data.state) {
+		let playerPoints = conv.data.state[player]
+		conv.ask(`${player} has ${playerPoints}`)
 	} else {
-		// there is state
-		console.log(conv.data.state)
-		if (player in conv.data.state) {
-			let playerPoints = conv.data.state[player]
-			conv.ask(`${player} has ${playerPoints}`)
-		} else {
-			conv.ask(`I don't know about a player named ${player}. If you'd like to add a player to the game, just say "add a player"`)
-		}
+		conv.ask(`I don't know about a player named ${player}. If you'd like to add a player to the game, just say "add a player"`)
 	}
 })
 
@@ -196,10 +165,9 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest(app)
 
 // returns a map of names to points
 function buildNewGameStateMap(points, names) {
-	let map = new Map()
+	let map = {}
 	for (const name of names) {
-		console.log(`giving ${name} ${points}`)
-		map[name] = Number(points)
+		map[name] = points
 	}
 	return map
 }
@@ -209,8 +177,20 @@ function userHasExistingGame(conv) {
 	return conv.user.storage.hasOngoingGame
 }
 
+function stateMapHasPlayers(conv) {
+	console.log(conv.data)
+	let res = conv.data.state !== null && !(Object.keys(conv.data.state).length === 0)
+	return res
+}
+
+
 // takes the state from the userStorage and sets it up in the current conversation
 function restoreGameState(conv) {
+	if (stateMapHasPlayers(conv)) {
+		console.log('state map has players, dont need to restore. returning.')
+		// this is a part of an ongoing session and we don't need to restore the state
+		return conv
+	}
 	if (userHasExistingGame(conv)) {
 		console.log('user has a game, restoring state')
 		conv.data.state = conv.user.storage.ongoingGame.state
@@ -225,7 +205,7 @@ function restoreGameState(conv) {
 
 // takes the conv object and returns an ongoingGame object to be stored to the userData
 function persistGameState(conv) {
-	if (conv.data.state) {
+	if (stateMapHasPlayers(conv)) {
 		console.log(`persisting game state`)
 		conv.user.storage.ongoingGame = {}
 		conv.user.storage.ongoingGame.previousGameState = conv.data.previousGameState
