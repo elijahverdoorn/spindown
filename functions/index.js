@@ -1,6 +1,7 @@
 const functions = require('firebase-functions')
 const { WebhookClient } = require('dialogflow-fulfillment')
 const { dialogflow } = require('actions-on-google')
+const strings = require('./strings')
 
 process.env.DEBUG = 'dialogflow:*' // enable lib debugging statements
 
@@ -13,19 +14,19 @@ app.intent('Welcome', (conv) => {
 		if (userHasExistingGame(conv)) {
 			// found stored data in the user. Restore that state and inform the user
 			conv = restoreGameState(conv)
-			conv.ask(`Welcome back! I've resumed your ongoing game. Go ahead and tell me what to do!`)
+			conv.ask(strings.WELCOME_RESUME_GAME)
 		} else {
-			conv.ask(`Welcome back to Keep Score! I didn't find any saved games for you, so I've made a new one. Who is playing this time?`)
+			conv.ask(strings.WELCOME_NO_RESUME)
 		}
 	} else {
-		conv.ask(`Welcome to Keep Score! I can keep track of points for you while you play games. To get started, I need to know who is playing?`)
+		conv.ask(strings.WELCOME_NEW_USER)
 	}
 })
 
 // invoked when the user doesn't say anything
 app.intent('Reprompt', (conv) => {
 	conv = persistGameState(conv)
-	conv.close(`I'll let you play now - when you need to update the scores, just ask!`)
+	conv.close(strings.REPROMPT_STANDARD)
 })
 
 app.intent('Set player names', (conv, { playerNames }) => {
@@ -33,7 +34,7 @@ app.intent('Set player names', (conv, { playerNames }) => {
 
 	conv.data.names = playerNames
 	conv.data.playerCount = playerNames.length
-	conv.ask(`Ok, I setup a game for ${playerNames.length} players. How many points should each player start with?`)
+	conv.ask(strings.SET_PLAYER_NAMES_CONFIRMATION(playerNames.length))
 })
 
 app.intent('Apply operation', (conv, { operation, points, player }) => {
@@ -57,7 +58,7 @@ app.intent('Apply operation', (conv, { operation, points, player }) => {
 				break;
 		}
 		conv.data.state[player] = currentPoints
-		conv.ask(`${player} now has ${currentPoints}`)
+		conv.ask(strings.APPLY_OPERATION_RESPONSE(player, currentPoints))
 	}
 })
 
@@ -79,13 +80,13 @@ app.intent('Reset game', (conv) => {
 	conv.data.previousGameState = conv.data.state
 	conv.data.state = null
 	conv = clearPersistedStorage(conv) // clear the game if it was saved to this user
-	conv.ask(`I've reset the scores. Do you want to play another game?`)
+	conv.ask(strings.RESET_GAME_CONFIRMATION)
 })
 
 app.intent('New game with same players', (conv) => {
 	conv.data.state = null
 	conv.data.state = buildNewGameStateMap(conv.data.startingPoints, conv.data.names)
-	conv.ask(`Great, another round! I've reset the scores, have fun!`)
+	conv.ask(strings.NEW_GAME_SAME_PLAYERS_CONFIRMATION)
 })
 
 app.intent('Edit player list', (conv, { operation, player }) => {
@@ -94,7 +95,7 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 		case 'add':
 		case 'set':
 			conv.data.state[player] = startingPoints
-			conv.ask(`I added a new player named ${player} and gave them ${conv.data.startingPoints} to start.`)
+			conv.ask(strings.ADDED_NEW_PLAYER(player, conv.data.startingPoints))
 			break;
 		case 'subtract':
 		case 'delete':
@@ -102,12 +103,12 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 				delete conv.data.state[player]
 				if (!stateMapHasPlayers(conv)) { // check if the user has removed all the players from the map
 					conv.contexts.set('Resetgame-followup', 2, null) // set a reset game context, since we're asking the user if that's what they want
-					conv.ask(`There are no players left in the game, would you like to reset the game?`)
+					conv.ask(strings.NO_REMAINING_PLAYERS)
 				} else {
-					conv.ask(`I've removed ${player}.`)
+					conv.ask(strings.REMOVED_PLAYER(player))
 				}
 			} else {
-				conv.ask(`I had trouble finding that player, please try again`)
+				conv.ask(strings.ERROR_FINDING_PLAYER)
 			}
 			break;
 	}
@@ -115,7 +116,7 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 
 app.intent('Query current leader', (conv, { extreme }) => {
 	conv = restoreGameState(conv)
-	conv.ask(`I'm still working on learning how to do that! Ask me again soon and I'm sure I'll have it figured out; in the meantime you can ask for all the scores, or you can ask for an individual player's score.`)
+	conv.ask(strings.STILL_LEARNING_QUERY)
 	//if (!conv.data.state) {
 		// there are no names, should implement some kind of error handling
 		//console.log('no state stored')
@@ -138,27 +139,27 @@ app.intent('Query current points', (conv, { player }) => {
 	console.log(conv.data.state)
 	if (player in conv.data.state) {
 		let playerPoints = conv.data.state[player]
-		conv.ask(`${player} has ${playerPoints}`)
+		conv.ask(strings.REPORT_PLAYER_POINTS(player, playerPoints))
 	} else {
-		conv.ask(`I don't know about a player named ${player}. If you'd like to add a player to the game, just say "add a player"`)
+		conv.ask(strings.QUERY_CURRENT_POINTS_PLAYER_NOT_FOUND(player))
 	}
 })
 
 app.intent('Set starting points', (conv, { startingPoints }) => {
 	conv.data.state = buildNewGameStateMap(startingPoints, conv.data.names)
 	conv.data.startingPoints = startingPoints
-	conv.ask(`Started a game, everyone has ${startingPoints} points. Good luck!`)
+	conv.ask(strings.START_GAME(startingPoints))
 })
 
 app.intent('Exit callback', (conv) => {
 	conv = persistGameState(conv)
-	conv.close(`Saving the game and closing Keep Score.`)
+	conv.close(strings.SAVING_GAME)
 })
 
 // error handler, which is basically a fallback
 app.catch((conv, error) => {
 	console.log(error)
-	conv.ask(`I'm sorry, I had a problem. Can you try that again?`)
+	conv.ask(strings.ERROR_MESSAGE)
 })
 
 exports.dialogflowFirebaseFulfillment = functions.https.onRequest(app)
