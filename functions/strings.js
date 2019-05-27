@@ -26,6 +26,9 @@ const NO_REMAINING_PLAYERS = `There are no players left in the game, would you l
 
 // Intent: Query current leader
 const STILL_LEARNING_QUERY =`I'm still working on learning how to do that! Ask me again soon and I'm sure I'll have it figured out; in the meantime you can ask for all the scores, or you can ask for an individual player's score.`
+const NO_EXTREME_FOUND = (extreme) => `Somehow I didn't find a player with the ${extreme} points. Sorry about that. If you'd like to get a listing of all the points and figure it out for yourself, just ask.`
+const SINGULAR_EXTREME_FOUND = (player, extreme, points) => `${player} has the ${extreme} points with ${points}`
+const MULTIPLE_PLAYERS_AT_EXTREME = (numLeaders, extreme, namesString) => `There are ${numLeaders} players tied for the ${extreme} points: ${namesString}`
 
 // Intent: Query current points
 const REPORT_PLAYER_POINTS = (player, playerPoints) => `${player} has ${playerPoints}`
@@ -58,5 +61,8 @@ module.exports = {
 	REPORT_PLAYER_POINTS: REPORT_PLAYER_POINTS,
 	QUERY_CURRENT_POINTS_PLAYER_NOT_FOUND: QUERY_CURRENT_POINTS_PLAYER_NOT_FOUND,
 	START_GAME: START_GAME,
-	ERROR_MESSAGE: ERROR_MESSAGE
+	ERROR_MESSAGE: ERROR_MESSAGE,
+	NO_EXTREME_FOUND: NO_EXTREME_FOUND,
+	SINGULAR_EXTREME_FOUND: SINGULAR_EXTREME_FOUND,
+	MULTIPLE_PLAYERS_AT_EXTREME: MULTIPLE_PLAYERS_AT_EXTREME
 }

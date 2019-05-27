@@ -116,27 +116,62 @@ app.intent('Edit player list', (conv, { operation, player }) => {
 
 app.intent('Query current leader', (conv, { extreme }) => {
 	conv = restoreGameState(conv)
-	conv.ask(strings.STILL_LEARNING_QUERY)
-	//if (!conv.data.state) {
-		// there are no names, should implement some kind of error handling
-		//console.log('no state stored')
-	//} else {
-		//// there is state
-		//console.log(conv.data.state)
-		//switch (extreme) {
-			//case 'most':
-				//break;
-			//case 'least':
-				//break;
-		//}
-	//}
+
+	let leaderPoints = null
+	let leaderName = []
+	switch(extreme) {
+		case 'most':
+			for (const player in conv.data.state) {
+				if (conv.data.state[player] > leaderPoints || leaderPoints === null) {
+					// this player has more points than the current leader(s), so clear the array and set them as the only leader
+					leaderName = []
+					leaderName.push(player)
+					leaderPoints = conv.data.state[player]
+				} else if (conv.data.state[player] === leaderPoints) {
+					// this player is tied with the leader(s), append them to the array
+					leaderName.push(player)
+				}
+			}
+			break
+		case 'least':
+			for (const player in conv.data.state) {
+				if (conv.data.state[player] < leaderPoints || leaderPoints === null) {
+					// this player has less points than the current leader(s)
+					// set them as the sole member of the array
+					// and update the leader points
+					leaderName = []
+					leaderName.push(player)
+					leaderPoints = conv.data.state[player]
+				} else if (conv.data.state[player] === leaderPoints) {
+					leaderName.push(player)
+				}
+			}
+			break
+	}
+
+	let responseString = ''
+	switch(leaderName.length) {
+		case 0:
+			// somehow there is no extreme, so report that
+			// this kinda shouldn't happen
+			responseString = strings.NO_EXTREME_FOUND(extreme)
+			break
+		case 1:
+			// there is one person with either the most or least points
+			responseString = strings.SINGULAR_EXTREME_FOUND(leaderName[0], extreme, conv.data.state[leaderName[0]])
+			break
+		default:
+			// there is a tie for the extreme
+			responseString = strings.MULTIPLE_PLAYERS_AT_EXTREME(leaderName.length, extreme, leaderName.join(', '))
+			break
+		}
+
+		conv.ask(responseString)
 })
 
 
 app.intent('Query current points', (conv, { player }) => {
 	conv = restoreGameState(conv)
-	// there is state
-	console.log(conv.data.state)
 	if (player in conv.data.state) {
 		let playerPoints = conv.data.state[player]
 		conv.ask(strings.REPORT_PLAYER_POINTS(player, playerPoints))
